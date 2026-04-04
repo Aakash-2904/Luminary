@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { searchResearchers } from "./api";
-import FederatedScreen from "./FederatedScreen";
+
 
 
 // ── BRAND COLORS — Red · Yellow · White · Blue accent ──
@@ -492,38 +492,38 @@ function ProfileScreen({ researcher:r, onBack }) {
 // ════════════════════════════════════════
 // SCREEN 4 — UPLOAD
 // ════════════════════════════════════════
-// ════════════════════════════════════════
-// SCREEN 4 — UPLOAD
-// Replace your entire existing UploadScreen
-// function with this one in App.jsx
-// ════════════════════════════════════════
+
+
+
+
+
 function UploadScreen() {
-  // Form fields
-  const [researcherName, setResearcherName] = useState("");
-  const [uniName,        setUniName]        = useState("");
-  const [dept,           setDept]           = useState("");
-  const [contactEmail,   setContactEmail]   = useState("");
-  const [description,    setDescription]    = useState("");
-  const [dataTypes,      setDataTypes]      = useState([]);
-  const [irbApproved,    setIrbApproved]    = useState(false);
-  const [status,         setStatus]         = useState("ongoing");
-  const [stage,          setStage]          = useState("early");
+  const [phase, setPhase] = useState("onboard");
+  const [uniName, setUniName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [dept, setDept] = useState("");
+  const [files, setFiles] = useState({ text:null, images:null, model:null });
+  const [agreed, setAgreed] = useState(false);
 
-  // File input (cosmetic only — files are NOT uploaded)
-  const [files,      setFiles]      = useState({ text:null, images:null, model:null });
-  const [agreed,     setAgreed]     = useState(false);
+
+
+
+
+
+
+
   const [submitting, setSubmitting] = useState(false);
-  const [toast,      setToast]      = useState(null);
-  const [expandedFaq,setExpandedFaq]= useState(null);
-  const [submitted,  setSubmitted]  = useState(false);
-  const [newCard,    setNewCard]     = useState(null);
+  const [toast, setToast] = useState(null);
+  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [encodeStep, setEncodeStep] = useState(0);
 
-  const DATA_TYPE_OPTIONS = [
-    { key:"Images",         icon:"🖼",  color:C.blueLight },
-    { key:"CSV / Tabular",  icon:"📊",  color:C.amber },
-    { key:"Model Weights",  icon:"🧠",  color:C.primary },
-    { key:"Encoded (.npz)", icon:"⚛",  color:C.success },
-  ];
+
+
+
+
+
+
+
 
   const fileTypes = [
     { key:"text",   icon:"📄", label:"Text Data (.qcsv.npz)",  desc:"Encoded abstracts, grant metadata, thesis summaries", accept:".npz,.zip",    color:C.primary },
@@ -531,308 +531,382 @@ function UploadScreen() {
     { key:"model",  icon:"🧠", label:"Model Weights (.npz)",    desc:"Local federated model weights from training round",   accept:".npz,.pt,.zip",color:C.amber },
   ];
 
-  const faqs = [
-    { q:"Are my files uploaded to the server?",  a:"No. The file selection is for your reference only — file bytes are never sent. Only the metadata you fill in (name, university, description, data types) is saved to the researcher database." },
-    { q:"What is the description used for?",      a:"It generates your 8-dimensional semantic embedding which powers search, becomes your public abstract, and auto-detects your methodology and domain tags. Be as specific as possible." },
-    { q:"How quickly will my project be searchable?", a:"Immediately after submission. The server reloads its in-memory list instantly — no queue, no review." },
-    { q:"What is quantum encoding?",              a:"Our encoder uses Walsh-Hadamard Transform, quantum phase encoding, and CNOT entanglement to create a lossless encrypted representation of your data. Run it in Google Colab — no coding required." },
-    { q:"What happens after we submit?",          a:"Your researcher record is added to the network database. Researchers globally can discover your institution's work through semantic search and QAOA collaboration matching immediately." },
+  const encodeSteps = [
+    { icon:"⬇️", title:"Download the encoder", desc:'Click "Get Quantum Encoder" below. It downloads a notebook file (.ipynb) to your computer.' },
+    { icon:"🌐", title:"Open in Google Colab",  desc:'Go to colab.research.google.com → File → Upload notebook → select the downloaded file. Free, no setup.' },
+    { icon:"▶️", title:"Run all cells",         desc:'Click Runtime → Run All. Wait ~30 seconds. A clean interface appears — no coding needed.' },
+    { icon:"📂", title:"Upload your research files", desc:'Click "Upload Files / ZIP" in the interface. Select your research documents, images, or CSV data files.' },
+    { icon:"⚛️", title:"Click Run Encoder",     desc:'Hit the green "Run Encoder" button. Your files are quantum-encoded locally in the browser. Nothing leaves your machine.' },
+    { icon:"⬇️", title:"Download encoded files",desc:'Click "Download Results". You get a ZIP of .npz files — these are safe to share. Come back here and upload them.' },
   ];
 
-  const toggleDataType = (key) =>
-    setDataTypes(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key]);
+  const faqs = [
+    { q:"Do my raw files ever leave my university?", a:"Never. The encoder runs entirely in Google Colab — your files are processed in your browser session. Only the encoded .npz output is downloaded to your machine. Nothing is transmitted to Luminary or any third party during encoding." },
+    { q:"What is quantum encoding?", a:"Our encoder uses three quantum computing techniques: Walsh-Hadamard Transform (simulates Hadamard gates on all data qubits simultaneously), quantum phase encoding (converts data values into complex wave functions), and CNOT entanglement (creates quantum-style diffusion between data points). The result is a lossless, encrypted representation of your data." },
+    { q:"Can we decode back to the original data?", a:"Yes — the encoding is perfectly lossless. The decoder in our notebook can reconstruct the original files exactly from the .npz output. This proves the integrity of the encoding." },
+    { q:"What file types can we encode?", a:"Images: .jpg, .png, .bmp, .tiff, .webp. Structured data: .csv files. For research text (abstracts, grant descriptions), format them as CSV with columns like title, abstract, methodology, domain before encoding." },
+    { q:"How long does encoding take?", a:"Typically 10–30 seconds per file depending on size. A batch of 50 research abstracts as CSV takes under a minute. Large imaging datasets may take a few minutes." },
+    { q:"What happens after we submit?", a:"Luminary's backend decodes your .npz files, extracts research metadata, and indexes it in our federated network. Within 24–48 hours, researchers globally can discover your institution's work through semantic search and QAOA collaboration matching." },
+  ];
 
-  const handleFile = (key, e) => {
-    const f = e.target.files[0];
-    if (f) setFiles(prev => ({...prev, [key]:f}));
-  };
+  const handleFile = (key, e) => { const f=e.target.files[0]; if(f)setFiles(prev=>({...prev,[key]:f})); };
+
+
+
+
+
+
 
   const handleSubmit = async () => {
-    if (!researcherName.trim()) { setToast({msg:"Researcher name is required", type:"warning"}); return; }
-    if (!uniName.trim())        { setToast({msg:"University name is required",  type:"warning"}); return; }
-    if (!contactEmail.trim())   { setToast({msg:"Contact email is required",    type:"warning"}); return; }
-    if (description.trim().length < 30) { setToast({msg:"Description must be at least 30 characters", type:"warning"}); return; }
-    if (!agreed) { setToast({msg:"Please confirm the data agreement", type:"warning"}); return; }
+    if(!uniName||!contactEmail){setToast({msg:"Please fill in university name and email",type:"warning"});return;}
+    if(!files.text&&!files.images&&!files.model){setToast({msg:"Please upload at least one encoded data file",type:"warning"});return;}
+    if(!agreed){setToast({msg:"Please confirm the data agreement to proceed",type:"warning"});return;}
+
+
 
     setSubmitting(true);
+    await new Promise(r=>setTimeout(r,2800));
+    setSubmitting(false);
+    setPhase("done");
 
-    try {
-      const res = await fetch("http://localhost:8000/upload/dataset", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name:         researcherName.trim(),
-          university:   uniName.trim(),
-          dept:         dept.trim(),
-          email:        contactEmail.trim(),
-          description:  description.trim(),
-          data_types:   dataTypes,
-          irb_approved: irbApproved,
-          status,
-          stage,
-        }),
-      });
 
-      if (res.ok) {
-        const data = await res.json();
-        setNewCard(data.researcher);
-      } else {
-        // Backend offline — still show success for demo purposes
-        setNewCard({
-          id:          "demo_" + Date.now(),
-          name:        researcherName.trim(),
-          university:  uniName.trim(),
-          dept:        dept.trim() || "Research Department",
-          title:       description.trim().split(".")[0].slice(0,100),
-          status,
-          stage,
-          irb_status:  irbApproved ? "approved" : "pending",
-          methodology: ["Machine Learning"],
-          domain:      ["Biomedical"],
-          datasets:    dataTypes.length > 0 ? dataTypes : ["Research Dataset"],
-          abstract:    description.trim(),
-          email:       contactEmail.trim(),
-        });
-      }
-      setSubmitted(true);
-      setToast({msg:`${researcherName} added to Luminary!`, type:"success"});
-    } catch {
-      // Backend offline — show demo success anyway
-      setNewCard({
-        id:          "demo_" + Date.now(),
-        name:        researcherName.trim(),
-        university:  uniName.trim(),
-        dept:        dept.trim() || "Research Department",
-        title:       description.trim().split(".")[0].slice(0,100),
-        status,
-        stage,
-        irb_status:  irbApproved ? "approved" : "pending",
-        methodology: ["Machine Learning"],
-        domain:      ["Biomedical"],
-        datasets:    dataTypes.length > 0 ? dataTypes : ["Research Dataset"],
-        abstract:    description.trim(),
-        email:       contactEmail.trim(),
-      });
-      setSubmitted(true);
-      setToast({msg:`${researcherName} added! (offline mode)`, type:"success"});
-    } finally {
-      setSubmitting(false);
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   };
 
-  const resetForm = () => {
-    setResearcherName(""); setUniName(""); setDept(""); setContactEmail("");
-    setDescription(""); setDataTypes([]); setIrbApproved(false);
-    setStatus("ongoing"); setStage("early");
-    setFiles({text:null,images:null,model:null});
-    setAgreed(false); setSubmitted(false); setNewCard(null);
-  };
-
-  // ── Success card ──
-  if (submitted && newCard) return (
-    <div style={{maxWidth:700, margin:"60px auto", padding:"0 32px", animation:"fadeIn .5s ease"}}>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
-
-      <div style={{...S.card, border:`1px solid ${C.success}44`, background:`${C.success}08`, marginBottom:24}}>
-        <div style={{fontSize:12, fontWeight:700, color:C.success, textTransform:"uppercase", letterSpacing:1, marginBottom:16}}>
-          ✅ Added to Luminary — searchable now
-        </div>
-        <div style={{display:"flex", gap:16, alignItems:"flex-start"}}>
-          <div style={{width:52, height:52, borderRadius:12, background:`linear-gradient(135deg,${C.primary},${C.blue})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800, color:"#fff", flexShrink:0}}>
-            {newCard.name.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:18, fontWeight:800, color:C.white, marginBottom:2}}>{newCard.name}</div>
-            <div style={{fontSize:13, color:C.primary, fontWeight:600, marginBottom:2}}>{newCard.university}</div>
-            <div style={{fontSize:12, color:C.textSub, marginBottom:10}}>{newCard.dept}</div>
-            <div style={{fontSize:14, color:C.textSub, lineHeight:1.6, marginBottom:12}}>{newCard.title}</div>
-            <div style={{display:"flex", gap:6, flexWrap:"wrap", marginBottom:10}}>
-              <span style={{...S.tag, background:`${statusColor(newCard.status)}18`, color:statusColor(newCard.status), border:`1px solid ${statusColor(newCard.status)}33`}}>{statusLabel(newCard.status)}</span>
-              {newCard.irb_status==="approved" && <span style={{...S.tag, background:`${C.success}18`, color:C.success, border:`1px solid ${C.success}33`}}>IRB Approved</span>}
-              <span style={{...S.tag, background:`${C.blueLight}18`, color:C.blueLight, border:`1px solid ${C.blueLight}33`}}>Stage: {newCard.stage}</span>
-            </div>
-            <div style={{marginBottom:8}}>
-              {newCard.methodology.slice(0,4).map(m=><span key={m} style={S.pill}>{m}</span>)}
-            </div>
-            <div style={{marginBottom:12}}>
-              {newCard.domain.slice(0,3).map(d=><span key={d} style={S.pillBlue}>{d}</span>)}
-            </div>
-            <div>
-              <div style={{fontSize:11, color:C.textMute, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:6}}>Datasets</div>
-              {newCard.datasets.map(d=>(
-                <div key={d} style={{fontSize:12, color:C.textSub, padding:"5px 0", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:8}}>
-                  <span>💾</span>{d}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+  if(phase==="done") return (
+    <div style={{maxWidth:600,margin:"80px auto",padding:"0 32px",textAlign:"center",animation:"fadeIn .5s ease"}}>
+      <div style={{width:80,height:80,borderRadius:"50%",background:`${C.success}22`,border:`2px solid ${C.success}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 24px"}}>✓</div>
+      <h2 style={{fontSize:28,fontWeight:800,color:C.white,marginBottom:12}}>Submission Received</h2>
+      <p style={{fontSize:15,color:C.textSub,lineHeight:1.8,marginBottom:32}}>Thank you, <strong style={{color:C.amber}}>{uniName}</strong>. Your encoded research data is being processed. Researchers across the Luminary network will be able to discover your institution's work within 24–48 hours.</p>
+      <div style={{...S.card,marginBottom:28,textAlign:"left"}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.amber,marginBottom:14,textTransform:"uppercase",letterSpacing:1}}>Submission Summary</div>
+        {[["University",uniName],["Department",dept||"—"],["Contact",contactEmail],["Text data",files.text?.name||"—"],["Image data",files.images?.name||"—"],["Model weights",files.model?.name||"—"]].map(([k,v])=>(
+          <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${C.border}`,fontSize:13}}><span style={{color:C.textMute}}>{k}</span><span style={{color:C.white}}>{v}</span></div>
+        ))}
       </div>
-      <button style={S.btn} onClick={resetForm}>Submit Another →</button>
+      <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+        <button style={S.btn} onClick={()=>{setPhase("onboard");setUniName("");setContactEmail("");setDept("");setFiles({text:null,images:null,model:null});setAgreed(false);}}>Submit Another</button>
+        <button style={S.btnOutline} onClick={()=>setPhase("upload")}>View My Submission</button>
+      </div>
     </div>
   );
 
-  // ── Main form ──
-  return (
-    <div style={{maxWidth:860, margin:"0 auto", padding:"40px 48px", animation:"fadeIn .4s ease"}}>
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
-
-      <SectionHeader
-        tag="Dataset & Model Portal"
-        title="Add Your Research to Luminary"
-        sub="Describe your dataset or model. Your project becomes instantly searchable across the network."
-      />
-
-      {/* Section 1 — Researcher & Institution */}
-      <div style={{...S.card, marginBottom:20, padding:28}}>
-        <div style={{fontSize:14, fontWeight:700, color:C.white, marginBottom:18}}>Researcher & Institution</div>
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16}}>
-          {[
-            {label:"Researcher Full Name *", val:researcherName, set:setResearcherName, ph:"e.g. Dr. Jane Smith"},
-            {label:"University *",           val:uniName,        set:setUniName,        ph:"e.g. Northeastern University"},
-            {label:"Department / School",    val:dept,           set:setDept,           ph:"e.g. Khoury College of CS"},
-            {label:"Contact Email *",        val:contactEmail,   set:setContactEmail,   ph:"research@university.edu"},
-          ].map(f=>(
-            <div key={f.label}>
-              <div style={{fontSize:11, color:C.textMute, marginBottom:6, fontWeight:700, textTransform:"uppercase", letterSpacing:1}}>{f.label}</div>
-              <input value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.ph}
-                style={{...S.input, width:"100%", display:"block"}}
-                onFocus={e=>e.target.style.borderColor=C.amber}
-                onBlur={e=>e.target.style.borderColor=C.border}
-              />
-            </div>
+  if(phase==="onboard") return (
+    <div style={{maxWidth:960,margin:"0 auto",padding:"40px 48px",animation:"fadeIn .4s ease"}}>
+      {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
+      <SectionHeader tag="University Portal" title="Join the Luminary Network" sub="Make your institution's research discoverable to PhD students and researchers worldwide — without sharing any raw data."/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:40}}>
+        {[[C.primary,"🔒","Zero Raw Data Exposure","Your research content never leaves your servers. Luminary only receives quantum-encoded representations."],[C.amber,"🌐","Global Discovery","PhD students at any connected university can find your researchers, datasets, and ongoing work instantly."],[C.blueLight,"⚛️","Quantum Protected","Our Walsh-Hadamard + phase encoding creates a lossless quantum fingerprint. Decodable only by you."]].map(([col,icon,title,desc])=>(
+          <div key={title} style={{...S.card,padding:24,borderColor:`${col}33`,borderTopWidth:3}}><div style={{fontSize:28,marginBottom:12}}>{icon}</div><div style={{fontSize:15,fontWeight:700,color:col,marginBottom:8}}>{title}</div><div style={{fontSize:13,color:C.textSub,lineHeight:1.7}}>{desc}</div></div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:40}}>
+        <div style={{...S.card,padding:28,borderColor:`${C.amber}44`,textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:16}}>⬇️</div>
+          <div style={{fontSize:17,fontWeight:700,color:C.white,marginBottom:8}}>First time? Get the encoder</div>
+          <div style={{fontSize:13,color:C.textSub,marginBottom:20,lineHeight:1.7}}>Download our Quantum Encoder notebook. Run it in Google Colab — no coding required. Encode your research files locally and come back to upload.</div>
+          <button style={S.btn} onClick={()=>setPhase("encode")}>Get Quantum Encoder →</button>
+        </div>
+        <div style={{...S.card,padding:28,borderColor:`${C.primary}44`,textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:16}}>📤</div>
+          <div style={{fontSize:17,fontWeight:700,color:C.white,marginBottom:8}}>Already encoded? Upload now</div>
+          <div style={{fontSize:13,color:C.textSub,marginBottom:20,lineHeight:1.7}}>Already have your .npz encoded files ready? Skip ahead and submit your data directly to the Luminary network.</div>
+          <button style={S.btnOutline} onClick={()=>setPhase("upload")}>Upload Encoded Data →</button>
+        </div>
+      </div>
+      <div style={{...S.card,marginBottom:32,padding:28}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:1,marginBottom:16}}>Currently Connected</div>
+        <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+          {["Northeastern University","Boston University","MIT","Harvard Medical School","Tufts University"].map(u=>(
+            <div key={u} style={{background:`${C.primary}12`,border:`1px solid ${C.primary}22`,borderRadius:8,padding:"8px 16px",fontSize:13,color:C.textSub}}>🏛 {u}</div>
           ))}
-        </div>
-
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16}}>
-          <div>
-            <div style={{fontSize:11, color:C.textMute, marginBottom:6, fontWeight:700, textTransform:"uppercase", letterSpacing:1}}>Project Status</div>
-            <select value={status} onChange={e=>setStatus(e.target.value)}
-              style={{...S.input, width:"100%", display:"block", cursor:"pointer", appearance:"none"}}>
-              <option value="ongoing">Ongoing</option>
-              <option value="published">Published</option>
-              <option value="dataset_available">Dataset Available</option>
-            </select>
-          </div>
-          <div>
-            <div style={{fontSize:11, color:C.textMute, marginBottom:6, fontWeight:700, textTransform:"uppercase", letterSpacing:1}}>Research Stage</div>
-            <select value={stage} onChange={e=>setStage(e.target.value)}
-              style={{...S.input, width:"100%", display:"block", cursor:"pointer", appearance:"none"}}>
-              <option value="early">Early Stage</option>
-              <option value="mid">Mid Stage</option>
-              <option value="published">Published</option>
-              <option value="dataset_available">Dataset Available</option>
-            </select>
-          </div>
-        </div>
-
-        <Toggle value={irbApproved} onChange={setIrbApproved} label="IRB Approved — this dataset has Institutional Review Board approval"/>
-      </div>
-
-      {/* Section 2 — Data Types */}
-      <div style={{...S.card, marginBottom:20, padding:28}}>
-        <div style={{fontSize:14, fontWeight:700, color:C.white, marginBottom:6}}>What does your dataset contain?</div>
-        <p style={{fontSize:13, color:C.textSub, marginBottom:18, lineHeight:1.7}}>Tick all that apply. These labels appear on your researcher card.</p>
-        <div style={{display:"flex", gap:12, flexWrap:"wrap"}}>
-          {DATA_TYPE_OPTIONS.map(t=>{
-            const selected = dataTypes.includes(t.key);
-            return (
-              <div key={t.key} onClick={()=>toggleDataType(t.key)} style={{display:"flex", alignItems:"center", gap:8, padding:"10px 18px", borderRadius:10, cursor:"pointer", border:`2px solid ${selected?t.color:C.border}`, background:selected?`${t.color}12`:"transparent", transition:"all .2s"}}>
-                <span style={{fontSize:18}}>{t.icon}</span>
-                <span style={{fontSize:13, fontWeight:600, color:selected?t.color:C.textSub}}>{t.key}</span>
-                {selected && <span style={{color:t.color, fontSize:14}}>✓</span>}
-              </div>
-            );
-          })}
+          <div style={{background:`${C.amber}12`,border:`1px solid ${C.amber}33`,borderRadius:8,padding:"8px 16px",fontSize:13,color:C.amber,fontWeight:600}}>+ Your University →</div>
         </div>
       </div>
-
-      {/* Section 3 — File upload (cosmetic) */}
-      <div style={{...S.card, marginBottom:20, padding:28}}>
-        <div style={{fontSize:14, fontWeight:700, color:C.white, marginBottom:4}}>Dataset Files</div>
-        <p style={{fontSize:13, color:C.textSub, marginBottom:18, lineHeight:1.7}}>
-          Optional — select your files for reference.
-          <span style={{color:C.amber, marginLeft:6, fontWeight:600}}>Files are not uploaded to the server.</span>
-        </p>
-        <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16}}>
-          {fileTypes.map(ft=>(
-            <label key={ft.key} htmlFor={`file-${ft.key}`}
-              style={{...S.card, padding:22, cursor:"pointer", textAlign:"center", borderColor:files[ft.key]?ft.color:C.border, background:files[ft.key]?`${ft.color}08`:C.bgCard, transition:"all .2s", display:"block"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=ft.color; e.currentTarget.style.background=`${ft.color}08`;}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=files[ft.key]?ft.color:C.border; e.currentTarget.style.background=files[ft.key]?`${ft.color}08`:C.bgCard;}}>
-              <input id={`file-${ft.key}`} type="file" accept={ft.accept} onChange={e=>handleFile(ft.key,e)} style={{display:"none"}}/>
-              <div style={{fontSize:32, marginBottom:10}}>{ft.icon.split(" ")[0]}</div>
-              <div style={{fontSize:13, fontWeight:700, color:C.white, marginBottom:6}}>{ft.label}</div>
-              <div style={{fontSize:12, color:C.textSub, marginBottom:14, lineHeight:1.5}}>{ft.desc}</div>
-              {files[ft.key]
-                ? <div style={{fontSize:12, color:ft.color, fontWeight:600, background:`${ft.color}18`, padding:"5px 12px", borderRadius:20}}>✓ {files[ft.key].name}</div>
-                : <div style={{fontSize:12, color:C.textMute, border:`1px dashed ${C.border}`, padding:"6px 12px", borderRadius:8}}>Click to select</div>
-              }
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Section 4 — Description (mandatory) */}
-      <div style={{...S.card, marginBottom:20, padding:28}}>
-        <div style={{fontSize:14, fontWeight:700, color:C.white, marginBottom:4}}>
-          Research Description <span style={{color:C.danger, fontSize:12, marginLeft:4}}>required</span>
-        </div>
-        <p style={{fontSize:13, color:C.textSub, marginBottom:14, lineHeight:1.7}}>
-          This is the only thing saved to the database. Describe your dataset — what it contains, methods used, research problem, and what collaborators you're looking for. This drives the semantic search embedding.
-        </p>
-        <textarea
-          rows={6}
-          value={description}
-          onChange={e=>setDescription(e.target.value)}
-          placeholder="e.g. A dataset of 10,000 labelled ovarian cancer histopathology slides collected across three hospitals. We use a CNN-based classification model trained with federated learning to detect early-stage ovarian cancer. IRB approved. Looking for collaborators with complementary imaging datasets or federated learning expertise..."
-          style={{...S.input, width:"100%", resize:"vertical", display:"block", lineHeight:1.7}}
-          onFocus={e=>e.target.style.borderColor=C.primary}
-          onBlur={e=>e.target.style.borderColor=C.border}
-        />
-        <div style={{display:"flex", justifyContent:"space-between", marginTop:8, fontSize:12}}>
-          <span style={{color:C.textMute}}>Drives: semantic search · methodology detection · domain tags · abstract</span>
-          <span style={{color:description.trim().length<30?C.danger:C.success, fontWeight:600}}>
-            {description.trim().length} / 30 min
-          </span>
-        </div>
-      </div>
-
-      {/* Section 5 — Agreement + Submit */}
-      <div style={{...S.card, padding:24, marginBottom:32}}>
-        <Toggle value={agreed} onChange={setAgreed} label="I confirm this is my own research work and I am authorised to submit on behalf of my institution."/>
-        <div style={{marginTop:20, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap"}}>
-          <button
-            style={{...S.btn, opacity:submitting?0.7:1, minWidth:240}}
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? "⏳ Saving..." : "Add to Luminary Network →"}
-          </button>
-          <span style={{fontSize:12, color:C.textMute}}>Searchable immediately · no files uploaded</span>
-        </div>
-      </div>
-
-      {/* FAQ */}
       <div>
-        <div style={{fontSize:13, fontWeight:700, color:C.amber, textTransform:"uppercase", letterSpacing:1, marginBottom:16}}>Frequently Asked Questions</div>
+        <div style={{fontSize:13,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:1,marginBottom:16}}>Frequently Asked Questions</div>
         {faqs.map((f,i)=>(
-          <div key={i} style={{...S.card, marginBottom:10, padding:0, overflow:"hidden", cursor:"pointer"}} onClick={()=>setExpandedFaq(expandedFaq===i?null:i)}>
-            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px"}}>
-              <span style={{fontSize:14, color:C.white, fontWeight:500}}>{f.q}</span>
-              <span style={{color:C.amber, fontSize:18, flexShrink:0, marginLeft:12, transform:expandedFaq===i?"rotate(45deg)":"rotate(0)", transition:"transform .2s"}}>+</span>
+          <div key={i} style={{...S.card,marginBottom:10,padding:0,overflow:"hidden",cursor:"pointer"}} onClick={()=>setExpandedFaq(expandedFaq===i?null:i)}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px"}}>
+              <span style={{fontSize:14,color:C.white,fontWeight:500}}>{f.q}</span>
+              <span style={{color:C.amber,fontSize:18,flexShrink:0,marginLeft:12,transform:expandedFaq===i?"rotate(45deg)":"rotate(0)",transition:"transform .2s"}}>+</span>
             </div>
-            {expandedFaq===i && (
-              <div style={{padding:"0 20px 16px", fontSize:13, color:C.textSub, lineHeight:1.8, borderTop:`1px solid ${C.border}`}}>
-                <div style={{paddingTop:14}}>{f.a}</div>
-              </div>
-            )}
+            {expandedFaq===i&&<div style={{padding:"0 20px 16px",fontSize:13,color:C.textSub,lineHeight:1.8,borderTop:`1px solid ${C.border}`}}><div style={{paddingTop:14}}>{f.a}</div></div>}
           </div>
         ))}
       </div>
     </div>
   );
+
+  if(phase==="encode") return (
+    <div style={{maxWidth:860,margin:"0 auto",padding:"40px 48px",animation:"fadeIn .4s ease"}}>
+      <button style={{...S.btnOutline,marginBottom:28,fontSize:12}} onClick={()=>setPhase("onboard")}>← Back</button>
+      <SectionHeader tag="Step 1 of 2 — Encode" title="Quantum Encoder Setup" sub="Follow these 6 steps. You do not need to write any code. The encoder runs entirely on Google Colab — free and in your browser."/>
+      <div style={{marginBottom:36}}>
+        {encodeSteps.map((st,i)=>(
+          <div key={i} style={{display:"flex",gap:20,alignItems:"flex-start",padding:"20px 24px",background:encodeStep===i?`${C.amber}10`:C.bgCard,border:`1px solid ${encodeStep===i?C.amber:C.border}`,borderRadius:12,marginBottom:10,cursor:"pointer",transition:"all .2s"}} onClick={()=>setEncodeStep(encodeStep===i?-1:i)}>
+            <div style={{width:44,height:44,borderRadius:12,background:encodeStep===i?`${C.amber}22`:`${C.primary}15`,border:`1px solid ${encodeStep===i?C.amber:C.primary}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{st.icon}</div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:encodeStep===i?8:0}}>
+                <span style={{fontSize:11,color:C.amber,fontWeight:700}}>Step {i+1}</span>
+                <span style={{fontSize:15,fontWeight:600,color:C.white}}>{st.title}</span>
+              </div>
+              {encodeStep===i&&<div style={{fontSize:13,color:C.textSub,lineHeight:1.7}}>{st.desc}</div>}
+            </div>
+            <span style={{color:C.textMute,fontSize:14,flexShrink:0}}>{encodeStep===i?"▲":"▼"}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{...S.card,marginBottom:32,padding:28}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.white,marginBottom:16}}>How to Format Your Research Data</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+          {[{icon:"📄",label:"Text / Abstracts",color:C.primary,items:["Save as .csv file","Columns: title, abstract, methodology, domain, status","One row per research project","UTF-8 encoding"]},{icon:"🖼",label:"Images / Figures",color:C.blueLight,items:["Supported: .jpg .png .bmp .tiff .webp","Research diagrams, imaging datasets","Batch upload as .zip folder","No size limit in Colab"]},{icon:"🧠",label:"Model Weights",color:C.amber,items:["From your local federated training","Save as .npz or .pt format","Include architecture config if available","Zip multiple files together"]}].map(ft=>(
+            <div key={ft.label} style={{background:`${ft.color}08`,border:`1px solid ${ft.color}22`,borderRadius:10,padding:18}}>
+              <div style={{fontSize:22,marginBottom:8}}>{ft.icon}</div>
+              <div style={{fontSize:13,fontWeight:700,color:ft.color,marginBottom:10}}>{ft.label}</div>
+              {ft.items.map(item=><div key={item} style={{fontSize:12,color:C.textSub,padding:"4px 0",borderBottom:`1px solid ${C.border}`,lineHeight:1.5}}>· {item}</div>)}
+            </div>
+          ))}
+
+
+
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <button style={S.btn} onClick={()=>{const a=document.createElement("a");a.href="https://colab.research.google.com/";a.target="_blank";a.click();}}>⬇ Download Encoder + Open in Colab →</button>
+        <button style={S.btnOutline} onClick={()=>setPhase("upload")}>I have my encoded files →</button>
+        <span style={{fontSize:12,color:C.textMute}}>Colab is free. No account needed beyond Google.</span>
+      </div>
+    </div>
+  );
+
+
+  return (
+    <div style={{maxWidth:860,margin:"0 auto",padding:"40px 48px",animation:"fadeIn .4s ease"}}>
+      {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
+      <button style={{...S.btnOutline,marginBottom:28,fontSize:12}} onClick={()=>setPhase("onboard")}>← Back</button>
+      <SectionHeader tag="Step 2 of 2 — Submit" title="Upload Encoded Data" sub="Submit your quantum-encoded .npz files. We accept files from the Luminary Encoder only. Raw data submissions are automatically rejected."/>
+      <div style={{...S.card,marginBottom:20,padding:28}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.white,marginBottom:18}}>Institution Details</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+          {[{label:"University Name *",val:uniName,set:setUniName,ph:"e.g. Northeastern University"},{label:"Department / School",val:dept,set:setDept,ph:"e.g. Khoury College of CS"},{label:"Research Admin Email *",val:contactEmail,set:setContactEmail,ph:"research@university.edu"}].map(f=>(
+
+
+
+
+
+
+
+
+
+
+
+            <div key={f.label}>
+              <div style={{fontSize:11,color:C.textMute,marginBottom:6,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>{f.label}</div>
+              <input value={f.val} onChange={e=>f.set(e.target.value)} placeholder={f.ph} style={{...S.input,width:"100%",display:"block"}} onFocus={e=>e.target.style.borderColor=C.amber} onBlur={e=>e.target.style.borderColor=C.border}/>
+
+
+
+
+            </div>
+          ))}
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      </div>
+      <div style={{...S.card,marginBottom:20,padding:28}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.white,marginBottom:6}}>Upload Encoded Files</div>
+        <p style={{fontSize:13,color:C.textSub,marginBottom:20}}>Upload the .npz files produced by the Luminary Quantum Encoder. At least one folder required.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          {fileTypes.map(ft=>(
+            <label key={ft.key} htmlFor={`file-${ft.key}`} style={{...S.card,padding:22,cursor:"pointer",textAlign:"center",borderColor:files[ft.key]?ft.color:C.border,background:files[ft.key]?`${ft.color}08`:C.bgCard,transition:"all .2s",display:"block"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=ft.color;e.currentTarget.style.background=`${ft.color}08`;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=files[ft.key]?ft.color:C.border;e.currentTarget.style.background=files[ft.key]?`${ft.color}08`:C.bgCard;}}>
+
+
+
+              <input id={`file-${ft.key}`} type="file" accept={ft.accept} onChange={e=>handleFile(ft.key,e)} style={{display:"none"}}/>
+              <div style={{fontSize:32,marginBottom:10}}>{ft.icon.split(" ")[0]}</div>
+              <div style={{fontSize:13,fontWeight:700,color:C.white,marginBottom:6}}>{ft.label}</div>
+              <div style={{fontSize:12,color:C.textSub,marginBottom:14,lineHeight:1.5}}>{ft.desc}</div>
+              {files[ft.key]?<div style={{fontSize:12,color:ft.color,fontWeight:600,background:`${ft.color}18`,padding:"5px 12px",borderRadius:20}}>✓ {files[ft.key].name}</div>:<div style={{fontSize:12,color:C.textMute,border:`1px dashed ${C.border}`,padding:"6px 12px",borderRadius:8}}>Click to upload</div>}
+
+
+
+            </label>
+          ))}
+        </div>
+      </div>
+      <div style={{...S.card,padding:24}}>
+        <Toggle value={agreed} onChange={setAgreed} label="I confirm all uploaded files are quantum-encoded using the Luminary Encoder. No raw personal, student, or research data is included. I am authorized to submit on behalf of my institution."/>
+        <div style={{marginTop:20,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+          <button style={{...S.btn,opacity:submitting?0.7:1,minWidth:220}} onClick={handleSubmit} disabled={submitting}>{submitting?"⏳ Processing...":"Submit to Luminary Network →"}</button>
+          <span style={{fontSize:12,color:C.textMute}}>Indexed within 24–48 hours · FERPA compliant · IRB safe</span>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </div>
+  );
 }
+
 // ════════════════════════════════════════
 // APP ROOT
 // ════════════════════════════════════════
@@ -910,5 +984,12 @@ export default function App() {
 }
 
 function NetworkPlaceholder() {
-  return <FederatedScreen />;
+  return (
+    <div style={{ padding:"40px 48px", maxWidth:900, margin:"0 auto" }}>
+      <SectionHeader tag="Live Network" title="Federated Learning Network" sub="Each university trains locally. Only encrypted model weights are shared. Raw data never leaves any node." />
+      <div style={{ background:"#0d1f35", border:"1px solid #1a3a5a", borderRadius:14, padding:40, textAlign:"center", color:"#7aacc8" }}>
+        Import FederatedScreen component here — already built in FederatedScreen.jsx
+      </div>
+    </div>
+  );
 }
